@@ -554,24 +554,35 @@
          (o "*" para probar). Abierta como file:// el Origin es "null".
   ════════════════════════════════════════════════════════════════ */
   const AGENT_CONFIG = {
-    // TODO: pegar la URL del webhook de n8n (Chat Trigger).
-    endpoint: null,
+    // Webhook del agente "Rocky 30x" (n8n · POST · streaming nativo).
+    endpoint: "https://n8n.agustinynatalia.site/webhook/d7ed99fa-1b54-4d0e-abfe-7c69b9960b7e",
 
     // Streaming activado (agente n8n).
     streaming: true,
 
-    // Una sesión por carga de página → el agente mantiene contexto/memoria.
-    sessionId: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "sess-" + Date.now(),
+    // ID de usuario estable por navegador (localStorage) → "Rocky 30x"
+    // mantiene la memoria de la conversación entre recargas.
+    sessionId: (function () {
+      try {
+        var k = "rocky30x_user_id", v = localStorage.getItem(k);
+        if (!v) { v = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "user-" + Date.now(); localStorage.setItem(k, v); }
+        return v;
+      } catch (e) {
+        return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "user-" + Date.now();
+      }
+    })(),
 
     // Headers extra si el webhook los pide (p.ej. Authorization).
     headers: { "Content-Type": "application/json" },
 
-    // Payload que espera el Chat Trigger de n8n.
+    // Payload del Chat Trigger de n8n. Confirmado: el mensaje va en "chatInput".
+    // El id del usuario viaja en sessionId (memoria del agente) y también en userId.
     buildPayload(texto, historia) {
       return {
         action: "sendMessage",
+        chatInput: texto,
         sessionId: AGENT_CONFIG.sessionId,
-        chatInput: texto
+        userId: AGENT_CONFIG.sessionId
       };
     },
 
