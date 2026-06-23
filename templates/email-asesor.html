@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="supported-color-schemes" content="dark light" />
+  <title>Nueva consulta · 30X</title>
+  <!--[if mso]>
+  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+  <![endif]-->
+  <style>
+    /* Reglas de respaldo. Lo crítico va INLINE (Gmail ignora gran parte de <style>). */
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    table { border-collapse: collapse; }
+    img { border: 0; line-height: 100%; outline: none; text-decoration: none; }
+    a { color: #CDFF2E; }
+    @media only screen and (max-width: 620px) {
+      .container { width: 100% !important; }
+      .px { padding-left: 22px !important; padding-right: 22px !important; }
+      .h1 { font-size: 26px !important; }
+    }
+  </style>
+</head>
+
+<body style="margin:0; padding:0; background-color:#0A0B08;">
+
+  <!-- Preheader: texto de vista previa (oculto en el cuerpo) -->
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#0A0B08;">
+    Nueva consulta para el Asesor de 30X &#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;
+  </div>
+
+  <!-- Fondo de página (full width) -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0A0B08;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+
+        <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+
+        <!-- Contenedor 600px -->
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#14160F; border:1px solid #262A20; border-radius:14px; overflow:hidden;">
+
+          <!-- Barra de acento superior (lima) -->
+          <tr>
+            <td style="height:4px; line-height:4px; font-size:0; background-color:#CDFF2E;">&nbsp;</td>
+          </tr>
+
+          <!-- Header: wordmark 30X + badge -->
+          <tr>
+            <td class="px" style="padding:24px 32px 18px 32px; border-bottom:1px solid #262A20;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="left" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:24px; font-weight:bold; letter-spacing:-0.5px; color:#F2F4EC;">
+                    30<span style="color:#CDFF2E;">X</span>
+                  </td>
+                  <td align="right" style="font-family:'Courier New',Courier,monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#CDFF2E;">
+                    <span style="display:inline-block; padding:6px 11px; background-color:rgba(205,255,46,0.10); border:1px solid #3A4A12; border-radius:999px;">● Nueva consulta</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Cuerpo -->
+          <tr>
+            <td class="px" style="padding:30px 32px 12px 32px;">
+              <p style="margin:0 0 8px 0; font-family:'Courier New',Courier,monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#8E9384;">
+                Asesor &middot; 30X
+              </p>
+              <h1 class="h1" style="margin:0 0 10px 0; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:30px; line-height:1.1; font-weight:bold; letter-spacing:-0.5px; color:#F2F4EC;">
+                Llegó una nueva consulta
+              </h1>
+              <p style="margin:0 0 24px 0; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:15px; line-height:1.55; color:#8E9384;">
+                Esto es lo que escribió la persona. Respondé directamente a este correo para contestarle.
+              </p>
+            </td>
+          </tr>
+
+          <!-- ╔══════════════════════════════════════════════════════╗
+               ║  CONSULTA — acá entra la variable de n8n:            ║
+               ║      {{ $json.body.consulta }}                       ║
+               ╚══════════════════════════════════════════════════════╝ -->
+          <tr>
+            <td class="px" style="padding:0 32px 4px 32px;">
+              <p style="margin:0 0 10px 0; font-family:'Courier New',Courier,monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#CDFF2E;">
+                Consulta
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td class="px" style="padding:0 32px 30px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#1C1F16; border:1px solid #262A20; border-left:3px solid #CDFF2E; border-radius:10px;">
+                <tr>
+                  <td style="padding:18px 20px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:16px; line-height:1.6; color:#F2F4EC; white-space:pre-wrap;">{{ $json.body.consulta }}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- (OPCIONAL) Datos de quien consulta. Descomentá y ajustá las variables
+               si tu webhook las recibe; si no, borrá este bloque entero.
+          <tr>
+            <td class="px" style="padding:0 32px 26px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #262A20;">
+                <tr>
+                  <td style="padding-top:16px; font-family:'Courier New',Courier,monospace; font-size:12px; color:#8E9384;">
+                    De: <span style="color:#F2F4EC;">{{ $json.body.nombre }}</span>
+                    &nbsp;&middot;&nbsp; {{ $json.body.email }}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          -->
+
+          <!-- Footer -->
+          <tr>
+            <td class="px" style="padding:20px 32px 26px 32px; border-top:1px solid #262A20; background-color:#101208;">
+              <p style="margin:0; font-family:'Courier New',Courier,monospace; font-size:11px; line-height:1.6; letter-spacing:0.5px; color:#6E7363;">
+                30X &middot; Asesor &nbsp;&middot;&nbsp; correo generado automáticamente
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+        <!--[if mso]></td></tr></table><![endif]-->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
