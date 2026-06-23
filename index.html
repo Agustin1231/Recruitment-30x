@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agente 30X · Consola</title>
+
+  <!-- Tipografía: Space Grotesk (display) · Inter (cuerpo) · JetBrains Mono (etiquetas/consola).
+       Carga desde Google Fonts; si no hay internet, cae a la stack del sistema. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      /* ── Paleta 30X ─────────────────────────────────────────────
+         Mandato de marca (PDFs): negro + acento lima-amarillo.       */
+      --ground:    #0A0B08;   /* casi-negro, lee como negro */
+      --surface:   #14160F;   /* panel elevado */
+      --surface-2: #1C1F16;   /* burbuja / control elevado */
+      --line:      #262A20;   /* divisores neutros */
+      --line-lime: rgba(205, 255, 46, 0.16);
+      --text:      #F2F4EC;   /* off-white */
+      --muted:     #8E9384;   /* texto secundario */
+      --accent:      #CDFF2E; /* lima-amarillo: señal de marca */
+      --accent-deep: #B6E81E; /* hover/pressed */
+      --accent-dim:  rgba(205, 255, 46, 0.10);
+
+      --font-display: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-body:    "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+      --maxw: 1180px;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--ground);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+    }
+
+    /* Curva exponencial de fondo (motivo "30X") */
+    #curve {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.9;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 0 28px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ── Nav ─────────────────────────────────────────────── */
+    header.nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 22px 0 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 26px;
+      letter-spacing: -0.03em;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 1px;
+      color: var(--text);
+      user-select: none;
+    }
+    .brand .x {
+      color: var(--accent);
+    }
+    .brand .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      display: inline-block;
+      margin-left: 8px;
+      align-self: center;
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    nav.links {
+      display: flex;
+      gap: 26px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      letter-spacing: 0.02em;
+    }
+    nav.links a {
+      color: var(--muted);
+      text-decoration: none;
+      transition: color .15s ease;
+    }
+    nav.links a:hover { color: var(--text); }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid var(--line-lime);
+      padding: 7px 12px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .status-pill .live {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(205,255,46,0.6);
+      animation: pulse 2.4s infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(205,255,46,0.55); }
+      70%  { box-shadow: 0 0 0 7px rgba(205,255,46,0); }
+      100% { box-shadow: 0 0 0 0 rgba(205,255,46,0); }
+    }
+
+    /* ── Layout principal: hero + consola ────────────────── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1.02fr;
+      gap: 48px;
+      align-items: center;
+      padding: 56px 0;
+    }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .eyebrow::before {
+      content: "";
+      width: 22px; height: 1px;
+      background: var(--accent);
+      display: inline-block;
+    }
+
+    h1.hero {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: clamp(40px, 5.4vw, 64px);
+      line-height: 0.98;
+      letter-spacing: -0.035em;
+      margin: 0 0 22px;
+    }
+    h1.hero .mult { color: var(--accent); }
+
+    .lede {
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 40ch;
+      margin: 0 0 30px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 30px;
+      margin: 0 0 34px;
+      padding: 0;
+      list-style: none;
+    }
+    .stats li { display: flex; flex-direction: column; gap: 2px; }
+    .stats .n {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 26px;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .stats .l {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .suggest-label {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .chip {
+      font-family: var(--font-body);
+      font-size: 13.5px;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid var(--line);
+      padding: 9px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: border-color .15s ease, color .15s ease, background .15s ease;
+    }
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* ── Consola de chat ─────────────────────────────────── */
+    .console {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      height: 560px;
+      max-height: 78vh;
+      overflow: hidden;
+      box-shadow: 0 24px 60px -28px rgba(0,0,0,0.8);
+    }
+
+    .console-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(205,255,46,0.04), transparent);
+    }
+    .console-head .who {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+    .avatar {
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      background: var(--accent);
+      color: #0A0B08;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 15px;
+      display: grid;
+      place-items: center;
+      letter-spacing: -0.04em;
+    }
+    .console-head .title { font-family: var(--font-display); font-weight: 500; font-size: 15px; }
+    .console-head .sub {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .console-head .sub b { color: var(--accent); font-weight: 500; }
+    .btn-ghost {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid var(--line);
+      padding: 7px 11px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+    .messages::-webkit-scrollbar { width: 8px; }
+    .messages::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+
+    .msg { display: flex; gap: 11px; max-width: 88%; }
+    .msg .bubble {
+      padding: 12px 15px;
+      border-radius: 13px;
+      font-size: 14.5px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .msg.agent { align-self: flex-start; }
+    .msg.agent .tag {
+      flex: none;
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #0A0B08;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 12px;
+      display: grid; place-items: center;
+      letter-spacing: -0.04em;
+    }
+    .msg.agent .bubble {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-top-left-radius: 4px;
+    }
+    .msg.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+    .msg.user .bubble {
+      background: var(--accent-dim);
+      border: 1px solid var(--line-lime);
+      border-top-right-radius: 4px;
+      color: var(--text);
+    }
+
+    /* indicador "pensando" */
+    .typing { display: inline-flex; gap: 5px; align-items: center; padding: 3px 0; }
+    .typing span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.4;
+      animation: blink 1.3s infinite both;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.18s; }
+    .typing span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes blink { 0%,80%,100% { opacity: 0.25; } 40% { opacity: 1; } }
+
+    .composer {
+      border-top: 1px solid var(--line);
+      padding: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background: var(--surface);
+    }
+    .composer textarea {
+      flex: 1;
+      resize: none;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 12px 14px;
+      font-family: var(--font-body);
+      font-size: 14.5px;
+      line-height: 1.45;
+      max-height: 140px;
+      transition: border-color .15s ease;
+    }
+    .composer textarea::placeholder { color: var(--muted); }
+    .composer textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .send {
+      flex: none;
+      background: var(--accent);
+      color: #0A0B08;
+      border: none;
+      border-radius: 11px;
+      width: 46px; height: 46px;
+      display: grid; place-items: center;
+      cursor: pointer;
+      transition: background .15s ease, transform .08s ease;
+    }
+    .send:hover { background: var(--accent-deep); }
+    .send:active { transform: scale(0.94); }
+    .send:disabled { opacity: 0.4; cursor: not-allowed; }
+    .send svg { width: 20px; height: 20px; }
+
+    footer {
+      padding: 18px 0 26px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.03em;
+      color: var(--muted);
+    }
+    footer .mode {
+      color: var(--accent);
+      border: 1px solid var(--line-lime);
+      padding: 4px 9px;
+      border-radius: 6px;
+    }
+
+    /* Foco accesible */
+    a:focus-visible, button:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 880px) {
+      main {
+        grid-template-columns: 1fr;
+        gap: 36px;
+        padding: 36px 0;
+      }
+      .console { height: 70vh; order: 2; }
+      .hero-copy { order: 1; }
+      nav.links { display: none; }
+    }
+    @media (max-width: 480px) {
+      .shell { padding: 0 16px; }
+      .stats { gap: 22px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="curve" aria-hidden="true"></canvas>
+
+  <div class="shell">
+    <header class="nav">
+      <div class="brand">30<span class="x">X</span><span class="dot" aria-hidden="true"></span></div>
+      <nav class="links" aria-label="Secciones">
+        <a href="#">Programas</a>
+        <a href="#">Comunidad</a>
+        <a href="#">Equipo</a>
+        <a href="#">Procesos</a>
+      </nav>
+      <span class="status-pill"><span class="live" aria-hidden="true"></span> Agente operativo</span>
+    </header>
+
+    <main>
+      <section class="hero-copy">
+        <p class="eyebrow">Asistente interno · 30X</p>
+        <h1 class="hero">Preguntale al<br />agente de <span class="mult">30X</span>.</h1>
+        <p class="lede">Programas, cohortes, equipo y procesos. Todo lo que 30X sabe, en una conversación. Escribí abajo y empezá.</p>
+
+        <ul class="stats">
+          <li><span class="n">13</span><span class="l">Programas</span></li>
+          <li><span class="n">4</span><span class="l">Categorías</span></li>
+          <li><span class="n">~25</span><span class="l">Personas</span></li>
+        </ul>
+
+        <p class="suggest-label">Probá con</p>
+        <div class="chips" id="chips">
+          <button class="chip">¿Qué programas de IA tienen?</button>
+          <button class="chip">¿Cómo funciona una cohorte online?</button>
+          <button class="chip">¿Quiénes son los fundadores?</button>
+          <button class="chip">Quiero aplicar a Fundraising School</button>
+        </div>
+      </section>
+
+      <section class="console" aria-label="Conversación con el agente">
+        <div class="console-head">
+          <div class="who">
+            <div class="avatar" aria-hidden="true">30</div>
+            <div>
+              <div class="title">Agente 30X</div>
+              <div class="sub">Estado · <b>en línea</b></div>
+            </div>
+          </div>
+          <button class="btn-ghost" id="clear" type="button">Limpiar</button>
+        </div>
+
+        <div class="messages" id="messages" aria-live="polite"></div>
+
+        <form class="composer" id="composer">
+          <textarea id="input" rows="1" placeholder="Escribí tu mensaje…" autocomplete="off"></textarea>
+          <button class="send" id="send" type="submit" aria-label="Enviar mensaje" disabled>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 12L20 4L13 20L11 13L4 12Z" fill="currentColor" />
+            </svg>
+          </button>
+        </form>
+      </section>
+    </main>
+
+    <footer>
+      <span>30X · Consola del agente · v0.1</span>
+      <span class="mode" id="mode">modo demo</span>
+    </footer>
+  </div>
+
+  <script>
+  /* ════════════════════════════════════════════════════════════════
+     PUNTO DE INTEGRACIÓN — pegar acá el endpoint cuando llegue.
+     ----------------------------------------------------------------
+     Cuando me pases el endpoint, el payload y el formato de respuesta,
+     se ajustan SOLO estas tres cosas. El resto de la UI no cambia.
+
+       endpoint:      URL del agente (POST). Si es null → modo demo (mock local).
+       buildPayload:  arma el body que se envía al endpoint.
+       parseResponse: extrae el texto del agente del JSON devuelto.
+  ════════════════════════════════════════════════════════════════ */
+  const AGENT_CONFIG = {
+    // TODO: reemplazar null por la URL real, p.ej. "https://api.30x.../agent/chat"
+    endpoint: null,
+
+    // TODO: ajustar a la estructura de payload que me confirmes.
+    //   `texto`   = mensaje que acaba de escribir el usuario
+    //   `historia`= mensajes previos [{ role: "user"|"agent", text }]
+    buildPayload(texto, historia) {
+      return {
+        message: texto,
+        history: historia.map(m => ({ role: m.role === "agent" ? "assistant" : "user", content: m.text }))
+      };
+    },
+
+    // TODO: ajustar a la forma de la respuesta que me confirmes.
+    parseResponse(data) {
+      return data.reply ?? data.message ?? data.response ?? data.text ?? "";
+    },
+
+    // Headers extra si el endpoint los pide (p.ej. Authorization).
+    headers: { "Content-Type": "application/json" }
+  };
+
+  // ── Estado ──────────────────────────────────────────────
+  const history = []; // { role: "user" | "agent", text }
+
+  const $messages = document.getElementById("messages");
+  const $input    = document.getElementById("input");
+  const $send     = document.getElementById("send");
+  const $composer = document.getElementById("composer");
+  const $clear    = document.getElementById("clear");
+  const $mode     = document.getElementById("mode");
+
+  $mode.textContent = AGENT_CONFIG.endpoint ? "conectado" : "modo demo";
+
+  // ── Render de mensajes ──────────────────────────────────
+  function addMessage(role, text) {
+    const wrap = document.createElement("div");
+    wrap.className = "msg " + role;
+    if (role === "agent") {
+      const tag = document.createElement("div");
+      tag.className = "tag";
+      tag.setAttribute("aria-hidden", "true");
+      tag.textContent = "30";
+      wrap.appendChild(tag);
+    }
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
+    $messages.appendChild(wrap);
+    scrollDown();
+    return bubble;
+  }
+
+  function addTyping() {
+    const wrap = document.createElement("div");
+    wrap.className = "msg agent";
+    wrap.id = "typing-row";
+    const tag = document.createElement("div");
+    tag.className = "tag";
+    tag.setAttribute("aria-hidden", "true");
+    tag.textContent = "30";
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+    wrap.append(tag, bubble);
+    $messages.appendChild(wrap);
+    scrollDown();
+    return wrap;
+  }
+
+  function scrollDown() {
+    $messages.scrollTop = $messages.scrollHeight;
+  }
+
+  // ── Envío al agente ─────────────────────────────────────
+  async function sendToAgent(texto) {
+    if (!AGENT_CONFIG.endpoint) {
+      return mockAgent(texto); // modo demo hasta tener el endpoint
+    }
+    const res = await fetch(AGENT_CONFIG.endpoint, {
+      method: "POST",
+      headers: AGENT_CONFIG.headers,
+      body: JSON.stringify(AGENT_CONFIG.buildPayload(texto, history))
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    return AGENT_CONFIG.parseResponse(data);
+  }
+
+  // ── Mock local (placeholder con contenido real de 30X) ──
+  function mockAgent(texto) {
+    const t = texto.toLowerCase();
+    let reply;
+    if (/(ia|inteligencia|ai)\b/.test(t)) {
+      reply = "En IA tenemos tres programas online en vivo: AI for Boards y AI for Executives (con Cynthia), y Hardcore AI (con Jefferson Arcos). ¿Querés detalle de alguno?";
+    } else if (/cohorte|funciona|semana/.test(t)) {
+      reply = "Una cohorte online corre en un ciclo de 4 a 6 semanas: pre-lanzamiento (2 semanas antes), Semana 0 de kick-off, semanas activas con sesiones en vivo por Zoom y soporte en Circle, y cierre con certificación y NPS.";
+    } else if (/fundador|bilbao|dylan|quien/.test(t)) {
+      reply = "30X fue fundada por Andrés Bilbao (CEO — visión y estrategia), Daniel Bilbao (producto y tecnología) y Dylan Rosemberg (growth y ventas).";
+    } else if (/fundraising|aplicar|startup/.test(t)) {
+      reply = "Fundraising School es un programa de Startups de 5 semanas, online en vivo, con Andrés y Daniel Bilbao. Para aplicar se completa el formulario de admisión en el pre-lanzamiento de la cohorte. ¿Te paso los próximos pasos?";
+    } else if (/programa|curso|oferta/.test(t)) {
+      reply = "Operamos 13 programas en 4 categorías: Ventas, IA, Growth y Startups, más la Inmersión Ejecutiva presencial de 3 días. ¿Sobre cuál querés saber?";
+    } else if (/hola|buenas|hey/.test(t)) {
+      reply = "¡Hola! Soy el agente de 30X. Puedo ayudarte con programas, cohortes, el equipo y los procesos internos. ¿Por dónde arrancamos?";
+    } else {
+      reply = "Estoy en modo demo todavía (sin endpoint conectado), así que respondo con info general de 30X. En cuanto se conecte el agente real, voy a responder esto con el modelo. ¿Querés ver los programas o cómo funciona una cohorte?";
+    }
+    // Simula latencia de red para que el indicador de "pensando" se vea.
+    return new Promise(resolve => setTimeout(() => resolve(reply), 650 + Math.min(texto.length * 12, 900)));
+  }
+
+  // ── Flujo de envío ──────────────────────────────────────
+  let busy = false;
+
+  async function handleSend(texto) {
+    texto = texto.trim();
+    if (!texto || busy) return;
+    busy = true;
+    $send.disabled = true;
+
+    addMessage("user", texto);
+    history.push({ role: "user", text: texto });
+    $input.value = "";
+    autoGrow();
+
+    const typingRow = addTyping();
+
+    try {
+      const reply = await sendToAgent(texto);
+      typingRow.remove();
+      addMessage("agent", reply || "(sin respuesta)");
+      history.push({ role: "agent", text: reply });
+    } catch (err) {
+      typingRow.remove();
+      addMessage("agent", "No pude contactar al agente (" + err.message + "). Revisá el endpoint y volvé a intentar.");
+    } finally {
+      busy = false;
+      $input.focus();
+      refreshSendState();
+    }
+  }
+
+  // ── Composer: auto-grow, Enter para enviar ──────────────
+  function autoGrow() {
+    $input.style.height = "auto";
+    $input.style.height = Math.min($input.scrollHeight, 140) + "px";
+  }
+  function refreshSendState() {
+    $send.disabled = busy || $input.value.trim().length === 0;
+  }
+
+  $input.addEventListener("input", () => { autoGrow(); refreshSendState(); });
+  $input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend($input.value);
+    }
+  });
+  $composer.addEventListener("submit", (e) => {
+    e.preventDefault();
+    handleSend($input.value);
+  });
+
+  // Chips sugeridos
+  document.getElementById("chips").addEventListener("click", (e) => {
+    const btn = e.target.closest(".chip");
+    if (!btn) return;
+    handleSend(btn.textContent);
+  });
+
+  // Limpiar conversación
+  $clear.addEventListener("click", () => {
+    history.length = 0;
+    $messages.innerHTML = "";
+    greet();
+    $input.focus();
+  });
+
+  // Saludo inicial del agente
+  function greet() {
+    addMessage("agent", "Hola 👋 Soy el agente de 30X. Puedo contarte sobre los programas, cómo funcionan las cohortes, el equipo y los procesos internos. ¿Qué querés saber?");
+  }
+
+  // ── Canvas: curva de crecimiento exponencial (motivo 30X) ──
+  (function curveBg() {
+    const canvas = document.getElementById("curve");
+    const ctx = canvas.getContext("2d");
+    let w, h, dpr;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize();
+    window.addEventListener("resize", () => { resize(); });
+
+    // exponencial normalizada 0..1
+    const K = 3.1;
+    const ease = t => (Math.exp(K * t) - 1) / (Math.exp(K) - 1);
+
+    function draw(progress) {
+      ctx.clearRect(0, 0, w, h);
+
+      const padL = w * 0.06, padR = w * 0.40, padB = h * 0.14, padT = h * 0.16;
+      const gx0 = padL, gx1 = w - padR;
+      const gy0 = h - padB, gy1 = padT;
+
+      // grilla de puntos tenue
+      ctx.fillStyle = "rgba(205,255,46,0.05)";
+      const cols = 26, rows = 14;
+      for (let i = 0; i <= cols; i++) {
+        for (let j = 0; j <= rows; j++) {
+          const x = gx0 + (gx1 - gx0) * (i / cols);
+          const y = gy1 + (gy0 - gy1) * (j / rows);
+          ctx.beginPath();
+          ctx.arc(x, y, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // puntos de la curva hasta progress
+      const N = 160;
+      const pts = [];
+      for (let i = 0; i <= N; i++) {
+        const tt = i / N;
+        if (tt > progress) break;
+        const x = gx0 + (gx1 - gx0) * tt;
+        const y = gy0 - (gy0 - gy1) * ease(tt);
+        pts.push([x, y]);
+      }
+      if (pts.length < 2) return;
+
+      // área bajo la curva
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], gy0);
+      pts.forEach(p => ctx.lineTo(p[0], p[1]));
+      ctx.lineTo(pts[pts.length - 1][0], gy0);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, gy1, 0, gy0);
+      grad.addColorStop(0, "rgba(205,255,46,0.14)");
+      grad.addColorStop(1, "rgba(205,255,46,0)");
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // trazo de la curva con glow
+      ctx.beginPath();
+      pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+      ctx.strokeStyle = "rgba(205,255,46,0.85)";
+      ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      ctx.shadowColor = "rgba(205,255,46,0.6)";
+      ctx.shadowBlur = 16;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // punto líder
+      const last = pts[pts.length - 1];
+      ctx.beginPath();
+      ctx.arc(last[0], last[1], 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#CDFF2E";
+      ctx.shadowColor = "rgba(205,255,46,0.9)";
+      ctx.shadowBlur = 18;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    if (reduce) {
+      draw(1);
+    } else {
+      const dur = 1700;
+      let start = null;
+      function frame(ts) {
+        if (start === null) start = ts;
+        const p = Math.min((ts - start) / dur, 1);
+        const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+        draw(eased);
+        if (p < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+      // redibuja estático tras resize (sin re-animar)
+      window.addEventListener("resize", () => draw(1));
+    }
+  })();
+
+  // Init
+  greet();
+  $input.focus();
+  </script>
+</body>
+</html>

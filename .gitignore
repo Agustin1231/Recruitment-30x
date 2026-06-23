@@ -1,0 +1,11 @@
+# dependencias
+node_modules/
+
+# secretos / entorno (NUNCA subir credenciales al repo)
+.env
+*.env
+!*.env.example
+
+# logs y temporales
+*.log
+.DS_Store
