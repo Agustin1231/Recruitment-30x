@@ -358,6 +358,15 @@
       color: var(--text);
     }
 
+    /* cursor de streaming: parpadea al final de la burbuja mientras llega texto */
+    .msg.agent .bubble.streaming::after {
+      content: "▍";
+      color: var(--accent);
+      margin-left: 1px;
+      animation: caret 1s steps(2) infinite;
+    }
+    @keyframes caret { 50% { opacity: 0; } }
+
     /* indicador "pensando" */
     .typing { display: inline-flex; gap: 5px; align-items: center; padding: 3px 0; }
     .typing span {
@@ -527,36 +536,66 @@
 
   <script>
   /* ════════════════════════════════════════════════════════════════
-     PUNTO DE INTEGRACIÓN — pegar acá el endpoint cuando llegue.
+     PUNTO DE INTEGRACIÓN — agente de n8n (con STREAMING activado).
      ----------------------------------------------------------------
-     Cuando me pases el endpoint, el payload y el formato de respuesta,
-     se ajustan SOLO estas tres cosas. El resto de la UI no cambia.
+     Cuando me pases la URL del webhook de n8n, se ajusta SOLO esto.
+     El resto de la UI no cambia.
 
-       endpoint:      URL del agente (POST). Si es null → modo demo (mock local).
-       buildPayload:  arma el body que se envía al endpoint.
-       parseResponse: extrae el texto del agente del JSON devuelto.
+       endpoint:      URL del webhook (Chat Trigger de n8n). null → demo.
+       streaming:     true → lee la respuesta token por token (stream).
+       sessionId:     identifica la conversación (memoria del agente n8n).
+       buildPayload:  body que se envía a n8n.
+       parseChunk:    interpreta cada fragmento del stream.
+       parseResponse: usado solo si streaming = false (respuesta JSON entera).
+
+     IMPORTANTE para que el stream funcione desde el navegador:
+       · En el nodo "Chat Trigger" de n8n: Response Mode = "Streaming".
+       · En "Allowed Origins (CORS)" permití el origen de esta página
+         (o "*" para probar). Abierta como file:// el Origin es "null".
   ════════════════════════════════════════════════════════════════ */
   const AGENT_CONFIG = {
-    // TODO: reemplazar null por la URL real, p.ej. "https://api.30x.../agent/chat"
+    // TODO: pegar la URL del webhook de n8n (Chat Trigger).
     endpoint: null,
 
-    // TODO: ajustar a la estructura de payload que me confirmes.
-    //   `texto`   = mensaje que acaba de escribir el usuario
-    //   `historia`= mensajes previos [{ role: "user"|"agent", text }]
+    // Streaming activado (agente n8n).
+    streaming: true,
+
+    // Una sesión por carga de página → el agente mantiene contexto/memoria.
+    sessionId: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "sess-" + Date.now(),
+
+    // Headers extra si el webhook los pide (p.ej. Authorization).
+    headers: { "Content-Type": "application/json" },
+
+    // Payload que espera el Chat Trigger de n8n.
     buildPayload(texto, historia) {
       return {
-        message: texto,
-        history: historia.map(m => ({ role: m.role === "agent" ? "assistant" : "user", content: m.text }))
+        action: "sendMessage",
+        sessionId: AGENT_CONFIG.sessionId,
+        chatInput: texto
       };
     },
 
-    // TODO: ajustar a la forma de la respuesta que me confirmes.
-    parseResponse(data) {
-      return data.reply ?? data.message ?? data.response ?? data.text ?? "";
+    // Cada fragmento del stream de n8n. Formato nativo del Chat Trigger:
+    //   { type: "begin"|"item"|"end"|"error", content, metadata }
+    // Devuelve el texto a AGREGAR (delta), o "" si no aporta texto.
+    // (Si en tu versión 'item.content' viniera acumulado en vez de delta,
+    //  avisame y cambio el "append" por "replace" en handleSend.)
+    parseChunk(obj) {
+      if (obj && typeof obj === "object" && "type" in obj) {
+        if (obj.type === "item")  return obj.content ?? "";
+        if (obj.type === "error") throw new Error(obj.content || "error del agente");
+        return ""; // begin / end → sin texto
+      }
+      // Fallbacks por si el flujo usa otro formato:
+      if (obj && obj.choices && obj.choices[0] && obj.choices[0].delta) // estilo OpenAI
+        return obj.choices[0].delta.content || "";
+      return obj.output ?? obj.text ?? obj.content ?? obj.chunk ?? "";
     },
 
-    // Headers extra si el endpoint los pide (p.ej. Authorization).
-    headers: { "Content-Type": "application/json" }
+    // Solo si streaming = false: respuesta JSON completa de n8n.
+    parseResponse(data) {
+      return data.output ?? data.text ?? data.reply ?? data.message ?? data.response ?? "";
+    }
   };
 
   // ── Estado ──────────────────────────────────────────────
@@ -569,7 +608,9 @@
   const $clear    = document.getElementById("clear");
   const $mode     = document.getElementById("mode");
 
-  $mode.textContent = AGENT_CONFIG.endpoint ? "conectado" : "modo demo";
+  $mode.textContent = !AGENT_CONFIG.endpoint
+    ? "demo · streaming"
+    : (AGENT_CONFIG.streaming ? "streaming · n8n" : "conectado · n8n");
 
   // ── Render de mensajes ──────────────────────────────────
   function addMessage(role, text) {
@@ -612,42 +653,106 @@
     $messages.scrollTop = $messages.scrollHeight;
   }
 
-  // ── Envío al agente ─────────────────────────────────────
-  async function sendToAgent(texto) {
-    if (!AGENT_CONFIG.endpoint) {
-      return mockAgent(texto); // modo demo hasta tener el endpoint
-    }
+  // ── sleep helper ────────────────────────────────────────
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  // ── Dispatcher: produce la respuesta llamando a onDelta(piece) ──
+  // por cada fragmento que llega. Devuelve el texto completo acumulado.
+  async function streamReply(texto, onDelta) {
+    if (!AGENT_CONFIG.endpoint)  return mockStream(texto, onDelta);    // demo
+    if (AGENT_CONFIG.streaming)  return streamToAgent(texto, onDelta); // n8n streaming
+    const reply = await sendToAgentOnce(texto);                       // n8n sin streaming
+    if (reply) onDelta(reply);
+    return reply;
+  }
+
+  // ── Streaming real desde n8n (lee el body como stream) ──
+  async function streamToAgent(texto, onDelta) {
     const res = await fetch(AGENT_CONFIG.endpoint, {
       method: "POST",
       headers: AGENT_CONFIG.headers,
       body: JSON.stringify(AGENT_CONFIG.buildPayload(texto, history))
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    return AGENT_CONFIG.parseResponse(data);
+
+    // Si el navegador/endpoint no expone el stream, caemos a JSON entero.
+    if (!res.body || !res.body.getReader) {
+      const data = await res.json();
+      const txt = AGENT_CONFIG.parseResponse(data);
+      if (txt) onDelta(txt);
+      return txt;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "", full = "";
+
+    // n8n streamea NDJSON (un objeto JSON por línea). También toleramos
+    // SSE ("data: …") y texto plano por las dudas.
+    const flushLine = (raw) => {
+      let line = raw.trim();
+      if (!line) return;
+      if (line.startsWith("data:")) line = line.slice(5).trim(); // SSE
+      if (line === "[DONE]") return;
+      let piece;
+      try { piece = AGENT_CONFIG.parseChunk(JSON.parse(line)); }
+      catch (e) { piece = line; } // no era JSON → tratar como texto plano
+      if (piece) { full += piece; onDelta(piece); }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        flushLine(buffer.slice(0, nl));
+        buffer = buffer.slice(nl + 1);
+      }
+    }
+    flushLine(buffer); // resto que quedó sin salto de línea final
+    return full;
   }
 
-  // ── Mock local (placeholder con contenido real de 30X) ──
-  function mockAgent(texto) {
+  // ── Llamada sin streaming (streaming = false) ───────────
+  async function sendToAgentOnce(texto) {
+    const res = await fetch(AGENT_CONFIG.endpoint, {
+      method: "POST",
+      headers: AGENT_CONFIG.headers,
+      body: JSON.stringify(AGENT_CONFIG.buildPayload(texto, history))
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return AGENT_CONFIG.parseResponse(await res.json());
+  }
+
+  // ── Demo: texto canónico (contenido real de 30X) ────────
+  function mockReplyText(texto) {
     const t = texto.toLowerCase();
-    let reply;
-    if (/(ia|inteligencia|ai)\b/.test(t)) {
-      reply = "En IA tenemos tres programas online en vivo: AI for Boards y AI for Executives (con Cynthia), y Hardcore AI (con Jefferson Arcos). ¿Querés detalle de alguno?";
-    } else if (/cohorte|funciona|semana/.test(t)) {
-      reply = "Una cohorte online corre en un ciclo de 4 a 6 semanas: pre-lanzamiento (2 semanas antes), Semana 0 de kick-off, semanas activas con sesiones en vivo por Zoom y soporte en Circle, y cierre con certificación y NPS.";
-    } else if (/fundador|bilbao|dylan|quien/.test(t)) {
-      reply = "30X fue fundada por Andrés Bilbao (CEO — visión y estrategia), Daniel Bilbao (producto y tecnología) y Dylan Rosemberg (growth y ventas).";
-    } else if (/fundraising|aplicar|startup/.test(t)) {
-      reply = "Fundraising School es un programa de Startups de 5 semanas, online en vivo, con Andrés y Daniel Bilbao. Para aplicar se completa el formulario de admisión en el pre-lanzamiento de la cohorte. ¿Te paso los próximos pasos?";
-    } else if (/programa|curso|oferta/.test(t)) {
-      reply = "Operamos 13 programas en 4 categorías: Ventas, IA, Growth y Startups, más la Inmersión Ejecutiva presencial de 3 días. ¿Sobre cuál querés saber?";
-    } else if (/hola|buenas|hey/.test(t)) {
-      reply = "¡Hola! Soy el agente de 30X. Puedo ayudarte con programas, cohortes, el equipo y los procesos internos. ¿Por dónde arrancamos?";
-    } else {
-      reply = "Estoy en modo demo todavía (sin endpoint conectado), así que respondo con info general de 30X. En cuanto se conecte el agente real, voy a responder esto con el modelo. ¿Querés ver los programas o cómo funciona una cohorte?";
+    if (/(ia|inteligencia|ai)\b/.test(t))
+      return "En IA tenemos tres programas online en vivo: AI for Boards y AI for Executives (con Cynthia), y Hardcore AI (con Jefferson Arcos). ¿Querés detalle de alguno?";
+    if (/cohorte|funciona|semana/.test(t))
+      return "Una cohorte online corre en un ciclo de 4 a 6 semanas: pre-lanzamiento (2 semanas antes), Semana 0 de kick-off, semanas activas con sesiones en vivo por Zoom y soporte en Circle, y cierre con certificación y NPS.";
+    if (/fundador|bilbao|dylan|quien/.test(t))
+      return "30X fue fundada por Andrés Bilbao (CEO — visión y estrategia), Daniel Bilbao (producto y tecnología) y Dylan Rosemberg (growth y ventas).";
+    if (/fundraising|aplicar|startup/.test(t))
+      return "Fundraising School es un programa de Startups de 5 semanas, online en vivo, con Andrés y Daniel Bilbao. Para aplicar se completa el formulario de admisión en el pre-lanzamiento de la cohorte. ¿Te paso los próximos pasos?";
+    if (/programa|curso|oferta/.test(t))
+      return "Operamos 13 programas en 4 categorías: Ventas, IA, Growth y Startups, más la Inmersión Ejecutiva presencial de 3 días. ¿Sobre cuál querés saber?";
+    if (/hola|buenas|hey/.test(t))
+      return "¡Hola! Soy el agente de 30X. Puedo ayudarte con programas, cohortes, el equipo y los procesos internos. ¿Por dónde arrancamos?";
+    return "Estoy en modo demo todavía (sin endpoint de n8n conectado), así que respondo con info general de 30X y el streaming está simulado. En cuanto conectes el webhook, esto va a llegar token por token desde el agente. ¿Querés ver los programas o cómo funciona una cohorte?";
+  }
+
+  // ── Demo: streaming simulado palabra por palabra ────────
+  async function mockStream(texto, onDelta) {
+    const reply = mockReplyText(texto);
+    const tokens = reply.match(/\S+\s*/g) || [reply];
+    await sleep(280); // breve "pensando" inicial
+    for (const tk of tokens) {
+      await sleep(26 + Math.random() * 46);
+      onDelta(tk);
     }
-    // Simula latencia de red para que el indicador de "pensando" se vea.
-    return new Promise(resolve => setTimeout(() => resolve(reply), 650 + Math.min(texto.length * 12, 900)));
+    return reply;
   }
 
   // ── Flujo de envío ──────────────────────────────────────
@@ -665,15 +770,37 @@
     autoGrow();
 
     const typingRow = addTyping();
+    let bubble = null, full = "";
+
+    // Cada fragmento del stream se agrega a la burbuja del agente en vivo.
+    const onDelta = (piece) => {
+      if (!bubble) {            // primer token → reemplazo el "pensando"
+        typingRow.remove();
+        bubble = addMessage("agent", "");
+        bubble.classList.add("streaming");
+      }
+      full += piece;
+      bubble.textContent = full;
+      scrollDown();
+    };
 
     try {
-      const reply = await sendToAgent(texto);
-      typingRow.remove();
-      addMessage("agent", reply || "(sin respuesta)");
-      history.push({ role: "agent", text: reply });
+      await streamReply(texto, onDelta);
+      if (!bubble) {            // no llegó ningún token
+        typingRow.remove();
+        bubble = addMessage("agent", full || "(sin respuesta)");
+      }
+      bubble.classList.remove("streaming");
+      history.push({ role: "agent", text: full });
     } catch (err) {
-      typingRow.remove();
-      addMessage("agent", "No pude contactar al agente (" + err.message + "). Revisá el endpoint y volvé a intentar.");
+      if (bubble) {             // se cortó a mitad del stream
+        bubble.classList.remove("streaming");
+        bubble.textContent = full + "\n\n[se cortó el stream: " + err.message + "]";
+        history.push({ role: "agent", text: full });
+      } else {
+        typingRow.remove();
+        addMessage("agent", "No pude contactar al agente (" + err.message + "). Revisá el endpoint y el CORS del Chat Trigger de n8n, y reintentá.");
+      }
     } finally {
       busy = false;
       $input.focus();
