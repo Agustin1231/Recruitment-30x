@@ -1,0 +1,13 @@
+{
+  "name": "recruitment-30x",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Frontend + backend del agente de onboarding 30X. server.js sirve el sitio estatico y expone /api/docs (lee la base vectorial).",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

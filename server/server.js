@@ -9,7 +9,40 @@
 //        http://localhost:8787/api/docs
 // ════════════════════════════════════════════════════════════════
 const http = require("http");
+const fs = require("fs");
+const path = require("path");
 const { Pool } = require("pg");
+
+// Raiz del sitio estatico (el repo): server.js vive en server/, los estaticos un nivel arriba.
+const STATIC_ROOT = path.resolve(__dirname, "..");
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".txt": "text/plain; charset=utf-8"
+};
+
+function serveStatic(req, res, pathname) {
+  let rel = decodeURIComponent(pathname);
+  if (rel === "/" || rel === "") rel = "/index.html";
+  const filePath = path.normalize(path.join(STATIC_ROOT, rel));
+  // Proteccion contra path traversal: el archivo debe quedar dentro de STATIC_ROOT.
+  if (!filePath.startsWith(STATIC_ROOT)) { res.writeHead(403); return res.end(); }
+  fs.readFile(filePath, (err, data) => {
+    if (err) { res.writeHead(404, { "Content-Type": "text/plain" }); return res.end("Not found"); }
+    const type = MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream";
+    res.writeHead(200, { "Content-Type": type });
+    res.end(data);
+  });
+}
 
 const DB = {
   host: process.env.PGHOST,
@@ -127,10 +160,13 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  if (url.pathname === "/" || url.pathname === "/health") {
+  if (url.pathname === "/health") {
     res.writeHead(200, { ...CORS, "Content-Type": "application/json" });
     return res.end(JSON.stringify({ ok: true, service: "30x vectordb viewer" }));
   }
+
+  // Cualquier otra ruta GET: servir el sitio estatico (index.html, templates, assets).
+  if (req.method === "GET") return serveStatic(req, res, url.pathname);
 
   res.writeHead(404, CORS);
   res.end();

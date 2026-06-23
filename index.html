@@ -1278,7 +1278,7 @@
     user: "admin@gmail.com",
     pass: "admin123",
     ingestUrl: "https://n8n.agustinynatalia.site/webhook/subir-pdf-30x", // POST multipart, campo "data" = PDF → n8n parsea + embeddings + INSERT en vectordb
-    listUrl:   "http://localhost:8787/api/docs"   // backend local (server/server.js) → SELECT directo de vectordb (tabla n8n_vectors)
+    listUrl:   "/api/docs"   // mismo origen: el backend (server/server.js) sirve la pagina y expone /api/docs → SELECT de vectordb (tabla n8n_vectors)
   };
 
   // Datos demo (estructura realista de la tabla vectorial de n8n).
