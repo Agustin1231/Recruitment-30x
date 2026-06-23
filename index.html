@@ -633,6 +633,36 @@
     .doc-card .txt { font-size: 14px; line-height: 1.55; color: var(--text); }
     .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 40px 0; }
 
+    /* subir PDF */
+    .dropzone {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+      text-align: center;
+      border: 1.5px dashed var(--line);
+      border-radius: 12px;
+      padding: 34px 20px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: border-color .15s, background .15s, color .15s;
+      margin-bottom: 14px;
+    }
+    .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-dim); color: var(--text); }
+    .dropzone .dz-icon { width: 30px; height: 30px; color: var(--accent); }
+    .dropzone .dz-text { font-size: 14.5px; color: var(--text); }
+    .dropzone .dz-text b { font-weight: 600; }
+    .dropzone .dz-sub { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; }
+    .file-info {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      background: var(--surface-2); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+      border-radius: 10px; padding: 10px 14px; margin-bottom: 14px;
+    }
+    .file-info .fi-name { font-family: var(--font-mono); font-size: 12.5px; color: var(--text); word-break: break-all; }
+    .upload-preview {
+      margin-top: 16px; background: var(--surface-2); border: 1px solid var(--line);
+      border-radius: 10px; padding: 14px 16px; font-size: 13px; line-height: 1.55; color: var(--muted);
+    }
+    .upload-preview b { color: var(--accent); font-weight: 500; }
+    .upload-preview .pv-text { color: var(--text); margin-top: 8px; white-space: pre-wrap; max-height: 160px; overflow: auto; }
+
     @media (max-width: 620px) {
       .admin-btn span.lbl { display: none; }
       .panel { height: 88vh; }
@@ -770,24 +800,32 @@
           <div class="doc-list" id="doc-list"></div>
         </div>
 
-        <!-- Agregar documento -->
+        <!-- Subir PDF -->
         <div class="tab-pane" id="pane-add">
           <div class="note-box">
-            El documento se envía a n8n, que genera el <b>embedding</b> y lo inserta en <b>vectordb</b>.
-            Mientras no haya endpoint configurado, se guarda localmente para previsualizar el flujo.
+            Subí un <b>PDF</b>. Se envía a n8n, que lo procesa, genera el <b>embedding</b> e inserta el contenido en <b>vectordb</b> para que el agente lo pueda consultar.
           </div>
-          <div class="form-row">
-            <label class="vlabel" for="doc-title">Título / fuente</label>
-            <input class="doc-title" id="doc-title" type="text" placeholder="p.ej. 30X — Programas y operación" />
+
+          <label class="dropzone" id="dropzone" for="pdf-input">
+            <input id="pdf-input" type="file" accept="application/pdf,.pdf" hidden />
+            <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 9 12 4 17 9" /><line x1="12" y1="4" x2="12" y2="16" />
+            </svg>
+            <div class="dz-text"><b>Arrastrá un PDF</b> o hacé clic para elegirlo</div>
+            <div class="dz-sub">Solo archivos .pdf</div>
+          </label>
+
+          <div class="file-info" id="file-info" hidden>
+            <span class="fi-name" id="fi-name"></span>
+            <button class="icon-x" id="fi-clear" type="button" aria-label="Quitar archivo">&times;</button>
           </div>
-          <div class="form-row">
-            <label class="vlabel" for="doc-content">Contenido</label>
-            <textarea class="doc-content" id="doc-content" placeholder="Pegá acá el texto del documento…"></textarea>
-          </div>
+
           <div class="form-actions">
-            <button class="btn-primary inline" id="doc-add" type="button">Agregar a la base</button>
+            <button class="btn-primary inline" id="pdf-upload" type="button" disabled>Subir a la base</button>
             <span class="feedback" id="add-feedback"></span>
           </div>
+
+          <div class="upload-preview" id="upload-preview" hidden></div>
         </div>
       </div>
     </div>
@@ -1239,8 +1277,8 @@
   const ADMIN = {
     user: "admin@gmail.com",
     pass: "admin123",
-    ingestUrl: null,  // POST {action:"ingest", title, content, userId} → n8n: embedding + INSERT en vectordb
-    listUrl:   null   // POST {action:"list", userId} → n8n: SELECT de vectordb → [{id, content, source, created}]
+    ingestUrl: "https://n8n.agustinynatalia.site/webhook/subir-pdf-30x", // POST multipart, campo "data" = PDF → n8n parsea + embeddings + INSERT en vectordb
+    listUrl:   null   // POST {action:"list", userId} → n8n: SELECT de vectordb → [{id, content, source, created}]  (pendiente de crear)
   };
 
   // Datos demo (estructura realista de la tabla vectorial de n8n).
@@ -1313,7 +1351,7 @@
   async function loadDocs() {
     $docsNote.innerHTML = ADMIN.listUrl
       ? "Conectado a n8n → <b>vectordb</b>."
-      : "Modo demo (datos de ejemplo). Configurá <b>ADMIN.listUrl</b> con el webhook de n8n para ver la base real.";
+      : "El listado todavía es demo (falta el webhook de lectura). Los PDF que subís <b>sí</b> se insertan en vectordb; acá se muestran los de esta sesión + ejemplos.";
     $docList.innerHTML = '<div class="empty">Cargando…</div>';
     $vcount.textContent = "—";
     try {
@@ -1370,34 +1408,98 @@
   $vsearch.addEventListener("input", renderDocs);
   document.getElementById("vrefresh").addEventListener("click", loadDocs);
 
-  // ── Agregar documento ──
+  // ── Subir PDF a la base vectorial ──
   const $addFeedback = document.getElementById("add-feedback");
+  const $dropzone    = document.getElementById("dropzone");
+  const $pdfInput    = document.getElementById("pdf-input");
+  const $fileInfo    = document.getElementById("file-info");
+  const $fiName      = document.getElementById("fi-name");
+  const $uploadBtn   = document.getElementById("pdf-upload");
+  const $uPreview    = document.getElementById("upload-preview");
+  let pickedFile = null;
+
   function setAddFeedback(msg, kind) {
     $addFeedback.textContent = msg;
     $addFeedback.className = "feedback" + (kind ? " " + kind : "");
   }
-  document.getElementById("doc-add").addEventListener("click", async () => {
-    const title   = document.getElementById("doc-title").value.trim();
-    const content = document.getElementById("doc-content").value.trim();
-    if (!content) { setAddFeedback("Escribí el contenido del documento.", "err"); return; }
-    setAddFeedback("Agregando…", "");
+  function fmtSize(b) {
+    if (b < 1024) return b + " B";
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
+    return (b / 1024 / 1024).toFixed(1) + " MB";
+  }
+  function pickFile(file) {
+    if (!file) return;
+    if (file.type !== "application/pdf" && !/\.pdf$/i.test(file.name)) {
+      setAddFeedback("Tiene que ser un archivo PDF.", "err");
+      return;
+    }
+    pickedFile = file;
+    $fiName.textContent = file.name + "  ·  " + fmtSize(file.size);
+    $fileInfo.hidden = false;
+    $uploadBtn.disabled = false;
+    setAddFeedback("", "");
+  }
+  function clearFile() {
+    pickedFile = null;
+    $pdfInput.value = "";
+    $fileInfo.hidden = true;
+    $uploadBtn.disabled = true;
+  }
+
+  $pdfInput.addEventListener("change", () => pickFile($pdfInput.files[0]));
+  document.getElementById("fi-clear").addEventListener("click", clearFile);
+
+  ["dragenter", "dragover"].forEach(ev => $dropzone.addEventListener(ev, (e) => {
+    e.preventDefault(); $dropzone.classList.add("drag");
+  }));
+  ["dragleave", "drop"].forEach(ev => $dropzone.addEventListener(ev, (e) => {
+    e.preventDefault(); $dropzone.classList.remove("drag");
+  }));
+  $dropzone.addEventListener("drop", (e) => {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) pickFile(e.dataTransfer.files[0]);
+  });
+
+  $uploadBtn.addEventListener("click", async () => {
+    if (!pickedFile || !ADMIN.ingestUrl) return;
+    $uploadBtn.disabled = true;
+    $uPreview.hidden = true;
+    setAddFeedback("Subiendo y procesando…", "");
     try {
-      if (ADMIN.ingestUrl) {
-        const res = await fetch(ADMIN.ingestUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "ingest", title: title, content: content, userId: AGENT_CONFIG.sessionId })
-        });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-      } else {
-        demoDocs.unshift({ id: "nuevo-" + (demoDocs.length + 1), source: title || "Sin título", created: "ahora", content: content });
+      const fd = new FormData();
+      fd.append("data", pickedFile, pickedFile.name);            // campo "data" = PDF (igual que el curl)
+      const res = await fetch(ADMIN.ingestUrl, { method: "POST", body: fd }); // sin Content-Type: lo arma el navegador
+      if (!res.ok) throw new Error("HTTP " + res.status);
+
+      // La respuesta trae el texto procesado (formato LangChain Document).
+      let preview = "";
+      try {
+        const data = await res.json();
+        const doc = Array.isArray(data) ? data[0] : data;
+        preview = (doc && (doc.pageContent || doc.text || doc.content)) || "";
+      } catch (e) { /* respuesta sin JSON: igual fue 200 */ }
+
+      // Reflejar lo subido en el visor de la sesión.
+      demoDocs.unshift({
+        id: "subido-" + Date.now(),
+        source: pickedFile.name,
+        created: "subido ahora",
+        content: preview || "(PDF procesado e insertado)"
+      });
+
+      setAddFeedback("✓ PDF procesado e insertado en vectordb.", "ok");
+      if (preview) {
+        $uPreview.innerHTML = "<b>" + pickedFile.name + "</b> — vista previa del texto extraído:";
+        const pv = document.createElement("div");
+        pv.className = "pv-text";
+        pv.textContent = preview.slice(0, 600) + (preview.length > 600 ? "…" : "");
+        $uPreview.appendChild(pv);
+        $uPreview.hidden = false;
       }
-      setAddFeedback("✓ Documento agregado.", "ok");
-      document.getElementById("doc-title").value = "";
-      document.getElementById("doc-content").value = "";
+      clearFile();
       loadDocs();
     } catch (err) {
-      setAddFeedback("Error: " + err.message, "err");
+      setAddFeedback("Error al subir: " + err.message, "err");
+      $uploadBtn.disabled = false;
     }
   });
 
