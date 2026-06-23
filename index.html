@@ -314,11 +314,21 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
+      scroll-behavior: smooth;
+      scrollbar-gutter: stable;
       scrollbar-width: thin;
-      scrollbar-color: var(--line) transparent;
+      scrollbar-color: rgba(205,255,46,0.22) transparent;
+      /* el contenido se desvanece suave arriba y abajo en vez de cortarse de golpe */
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 8px), transparent 100%);
+              mask-image: linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 8px), transparent 100%);
     }
-    .messages::-webkit-scrollbar { width: 8px; }
-    .messages::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb {
+      background: rgba(205,255,46,0.20);
+      border-radius: 999px;
+    }
+    .messages::-webkit-scrollbar-thumb:hover { background: rgba(205,255,46,0.40); }
 
     .msg { display: flex; gap: 11px; max-width: 88%; }
     .msg .bubble {
@@ -465,6 +475,168 @@
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; }
     }
+
+    /* ══ Administrar: botón del nav + overlay ══ */
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .admin-btn {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid var(--line);
+      padding: 7px 13px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: border-color .15s, color .15s, background .15s;
+    }
+    .admin-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+    .admin-btn svg { width: 13px; height: 13px; }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(6,7,5,0.78);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .overlay.open { display: flex; }
+
+    .login-card {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 30px 28px;
+      box-shadow: 0 30px 80px -30px rgba(0,0,0,0.9);
+    }
+    .login-card .brand { font-size: 22px; margin-bottom: 18px; }
+    .login-card h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -0.02em; margin: 0 0 4px; }
+    .login-card p.hint { margin: 0 0 22px; color: var(--muted); font-size: 13.5px; }
+    .login-err { color: #ff6b6b; font-size: 13px; margin: 0 0 12px; min-height: 1px; }
+
+    .field { margin-bottom: 14px; }
+    .vlabel, .field label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .field input, .doc-title, .doc-content, .vector-toolbar input {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px 13px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 14.5px;
+    }
+    .field input:focus, .doc-title:focus, .doc-content:focus, .vector-toolbar input:focus { outline: none; border-color: var(--accent); }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: #0A0B08;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 14.5px;
+      cursor: pointer;
+      transition: background .15s, transform .08s;
+    }
+    .btn-primary:hover { background: var(--accent-deep); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary.inline { width: auto; padding: 11px 20px; }
+
+    .panel {
+      width: 100%;
+      max-width: 920px;
+      height: min(86vh, 720px);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 30px 80px -30px rgba(0,0,0,0.9);
+    }
+    .panel.open { display: flex; }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; padding: 18px 22px; border-bottom: 1px solid var(--line);
+    }
+    .panel-head .title-wrap { display: flex; align-items: center; gap: 12px; }
+    .panel-head h2 { font-family: var(--font-display); font-weight: 500; font-size: 16px; margin: 0; }
+    .panel-head .sub { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+    .icon-x { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 22px; line-height: 1; padding: 2px 8px; }
+    .icon-x:hover { color: var(--text); }
+
+    .tabs { display: flex; gap: 4px; padding: 12px 22px 0; border-bottom: 1px solid var(--line); }
+    .tab {
+      font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; text-transform: uppercase;
+      color: var(--muted); background: transparent; border: none; border-bottom: 2px solid transparent;
+      padding: 8px 10px 12px; cursor: pointer; transition: color .15s, border-color .15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .panel-body {
+      flex: 1; overflow-y: auto; padding: 22px;
+      scrollbar-width: thin; scrollbar-color: rgba(205,255,46,0.22) transparent;
+    }
+    .panel-body::-webkit-scrollbar { width: 6px; }
+    .panel-body::-webkit-scrollbar-thumb { background: rgba(205,255,46,0.20); border-radius: 999px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    .doc-content { min-height: 170px; resize: vertical; line-height: 1.5; font-size: 14px; }
+    .form-row { margin-bottom: 14px; }
+    .form-actions { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+    .feedback { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+    .feedback.ok { color: var(--accent); }
+    .feedback.err { color: #ff6b6b; }
+
+    .note-box {
+      font-family: var(--font-mono); font-size: 11.5px; line-height: 1.6; color: var(--muted);
+      background: var(--accent-dim); border: 1px solid var(--line-lime);
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 18px;
+    }
+    .note-box b { color: var(--accent); font-weight: 500; }
+
+    .vector-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .vector-toolbar input { flex: 1; }
+    .vcount { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+    .doc-list { display: flex; flex-direction: column; gap: 10px; }
+    .doc-card {
+      background: var(--surface-2); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+      border-radius: 10px; padding: 13px 15px;
+    }
+    .doc-card .meta { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+    .doc-card .meta .id { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); }
+    .doc-card .meta .src { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+    .doc-card .txt { font-size: 14px; line-height: 1.55; color: var(--text); }
+    .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 40px 0; }
+
+    @media (max-width: 620px) {
+      .admin-btn span.lbl { display: none; }
+      .panel { height: 88vh; }
+    }
   </style>
 </head>
 <body>
@@ -479,7 +651,18 @@
         <a href="#">Equipo</a>
         <a href="#">Procesos</a>
       </nav>
-      <span class="status-pill"><span class="live" aria-hidden="true"></span> Agente operativo</span>
+      <div class="nav-right">
+        <span class="status-pill"><span class="live" aria-hidden="true"></span> Agente operativo</span>
+        <button class="admin-btn" id="open-admin" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+            <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+            <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+          </svg>
+          <span class="lbl">Administrar</span>
+        </button>
+      </div>
     </header>
 
     <main>
@@ -532,6 +715,82 @@
       <span>30X · Consola del agente · v0.1</span>
       <span class="mode" id="mode">modo demo</span>
     </footer>
+  </div>
+
+  <!-- ══ Panel de administración (gate de prototipo) ══ -->
+  <div class="overlay" id="admin-overlay" role="dialog" aria-modal="true" aria-label="Administrar">
+
+    <!-- Login -->
+    <form class="login-card" id="login-card">
+      <div class="brand">30<span class="x">X</span></div>
+      <h2>Administrar</h2>
+      <p class="hint">Acceso al panel de la base de conocimiento.</p>
+      <p class="login-err" id="login-err"></p>
+      <div class="field">
+        <label for="adm-email">Email</label>
+        <input id="adm-email" type="email" autocomplete="username" placeholder="admin@gmail.com" />
+      </div>
+      <div class="field">
+        <label for="adm-pass">Contraseña</label>
+        <input id="adm-pass" type="password" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+      <button class="btn-primary" type="submit">Entrar</button>
+    </form>
+
+    <!-- Panel -->
+    <div class="panel" id="admin-panel">
+      <div class="panel-head">
+        <div class="title-wrap">
+          <div class="avatar" aria-hidden="true">30</div>
+          <div>
+            <h2>Base de conocimiento</h2>
+            <div class="sub">Base vectorial · vectordb</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn-ghost" id="admin-logout" type="button">Salir</button>
+          <button class="icon-x" id="admin-close" type="button" aria-label="Cerrar">&times;</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="docs" type="button">Base vectorial</button>
+        <button class="tab" data-tab="add" type="button">Agregar documento</button>
+      </div>
+
+      <div class="panel-body">
+        <!-- Visor de la base -->
+        <div class="tab-pane active" id="pane-docs">
+          <div class="note-box" id="docs-note"></div>
+          <div class="vector-toolbar">
+            <input id="vsearch" type="search" placeholder="Filtrar documentos…" />
+            <span class="vcount" id="vcount">—</span>
+            <button class="btn-ghost" id="vrefresh" type="button">Recargar</button>
+          </div>
+          <div class="doc-list" id="doc-list"></div>
+        </div>
+
+        <!-- Agregar documento -->
+        <div class="tab-pane" id="pane-add">
+          <div class="note-box">
+            El documento se envía a n8n, que genera el <b>embedding</b> y lo inserta en <b>vectordb</b>.
+            Mientras no haya endpoint configurado, se guarda localmente para previsualizar el flujo.
+          </div>
+          <div class="form-row">
+            <label class="vlabel" for="doc-title">Título / fuente</label>
+            <input class="doc-title" id="doc-title" type="text" placeholder="p.ej. 30X — Programas y operación" />
+          </div>
+          <div class="form-row">
+            <label class="vlabel" for="doc-content">Contenido</label>
+            <textarea class="doc-content" id="doc-content" placeholder="Pegá acá el texto del documento…"></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary inline" id="doc-add" type="button">Agregar a la base</button>
+            <span class="feedback" id="add-feedback"></span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -965,6 +1224,182 @@
       window.addEventListener("resize", () => draw(1));
     }
   })();
+
+  // ════════════════════════════════════════════════════════════════
+  //  PANEL DE ADMINISTRACIÓN — base de conocimiento (base vectorial)
+  // ----------------------------------------------------------------
+  //  · Login: gate de PROTOTIPO. Se valida en el navegador, así que
+  //    NO es seguridad real (cualquiera puede ver el código). Para auth
+  //    de verdad hace falta un backend.
+  //  · Documentos: la página NO se conecta a Postgres directo — el
+  //    navegador no habla ese protocolo y expondría la contraseña.
+  //    Habla con n8n, y n8n hace el embedding + INSERT/SELECT en vectordb.
+  //    Configurá los webhooks acá abajo; null → modo demo con ejemplos.
+  // ════════════════════════════════════════════════════════════════
+  const ADMIN = {
+    user: "admin@gmail.com",
+    pass: "admin123",
+    ingestUrl: null,  // POST {action:"ingest", title, content, userId} → n8n: embedding + INSERT en vectordb
+    listUrl:   null   // POST {action:"list", userId} → n8n: SELECT de vectordb → [{id, content, source, created}]
+  };
+
+  // Datos demo (estructura realista de la tabla vectorial de n8n).
+  let demoDocs = [
+    { id: "demo-cultura", source: "30X · Cultura", created: "2025", content: "AI es una obligación, no una opción: se espera que uses AI para trabajar mejor, no solo más rápido. Si podés automatizar algo que hacés a mano, deberías estar automatizándolo." },
+    { id: "demo-cohorte", source: "30X · Programas", created: "2025", content: "Una cohorte online corre en un ciclo estándar de 4 a 6 semanas e involucra al instructor, el community manager y operaciones." },
+    { id: "demo-portafolio", source: "30X · Programas", created: "2025", content: "Portafolio: 13 programas en 4 categorías (Ventas, IA, Growth y Startups), más la Inmersión Ejecutiva presencial de 3 días." },
+    { id: "demo-equipo", source: "30X · Equipo", created: "2025", content: "30X opera con ~25 personas en cuatro áreas. Fundadores: Andrés Bilbao (CEO), Daniel Bilbao y Dylan Rosemberg." }
+  ];
+
+  const $overlay   = document.getElementById("admin-overlay");
+  const $loginCard = document.getElementById("login-card");
+  const $panel     = document.getElementById("admin-panel");
+  const $loginErr  = document.getElementById("login-err");
+
+  function openAdmin() {
+    $overlay.classList.add("open");
+    const authed = sessionStorage.getItem("rocky30x_admin") === "1";
+    showAdminView(authed);
+    if (!authed) document.getElementById("adm-email").focus();
+  }
+  function closeAdmin() { $overlay.classList.remove("open"); }
+  function showAdminView(authed) {
+    $loginCard.style.display = authed ? "none" : "block";
+    $panel.classList.toggle("open", authed);
+    if (authed) loadDocs();
+  }
+
+  document.getElementById("open-admin").addEventListener("click", openAdmin);
+  document.getElementById("admin-close").addEventListener("click", closeAdmin);
+  $overlay.addEventListener("click", (e) => { if (e.target === $overlay) closeAdmin(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $overlay.classList.contains("open")) closeAdmin(); });
+
+  $loginCard.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = document.getElementById("adm-email").value.trim().toLowerCase();
+    const pass  = document.getElementById("adm-pass").value;
+    if (email === ADMIN.user && pass === ADMIN.pass) {
+      sessionStorage.setItem("rocky30x_admin", "1");
+      $loginErr.textContent = "";
+      document.getElementById("adm-pass").value = "";
+      showAdminView(true);
+    } else {
+      $loginErr.textContent = "Email o contraseña incorrectos.";
+    }
+  });
+  document.getElementById("admin-logout").addEventListener("click", () => {
+    sessionStorage.removeItem("rocky30x_admin");
+    showAdminView(false);
+    document.getElementById("adm-email").focus();
+  });
+
+  // Tabs
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("pane-" + tab.dataset.tab).classList.add("active");
+    });
+  });
+
+  // ── Visor de la base vectorial ──
+  const $docList  = document.getElementById("doc-list");
+  const $vcount   = document.getElementById("vcount");
+  const $vsearch  = document.getElementById("vsearch");
+  const $docsNote = document.getElementById("docs-note");
+  let allDocs = [];
+
+  async function loadDocs() {
+    $docsNote.innerHTML = ADMIN.listUrl
+      ? "Conectado a n8n → <b>vectordb</b>."
+      : "Modo demo (datos de ejemplo). Configurá <b>ADMIN.listUrl</b> con el webhook de n8n para ver la base real.";
+    $docList.innerHTML = '<div class="empty">Cargando…</div>';
+    $vcount.textContent = "—";
+    try {
+      if (ADMIN.listUrl) {
+        const res = await fetch(ADMIN.listUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list", userId: AGENT_CONFIG.sessionId })
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        allDocs = normalizeDocs(await res.json());
+      } else {
+        allDocs = demoDocs.slice();
+      }
+      renderDocs();
+    } catch (err) {
+      $docList.innerHTML = '<div class="empty">No pude cargar la base (' + err.message + ').</div>';
+    }
+  }
+
+  // Tolera varias formas de respuesta de n8n / LangChain y las normaliza.
+  function normalizeDocs(data) {
+    const rows = Array.isArray(data) ? data : (data.documents || data.rows || data.data || []);
+    return rows.map((r, i) => ({
+      id:      r.id ?? r.uuid ?? r.custom_id ?? ("row-" + i),
+      content: r.content ?? r.text ?? r.document ?? r.pageContent ?? "",
+      source:  r.source ?? (r.metadata && (r.metadata.source || r.metadata.title)) ?? (r.cmetadata && (r.cmetadata.source || r.cmetadata.title)) ?? "—",
+      created: r.created ?? r.created_at ?? r.createdAt ?? ""
+    }));
+  }
+
+  function renderDocs() {
+    const q = ($vsearch.value || "").toLowerCase().trim();
+    const list = q ? allDocs.filter(d => (d.content + " " + d.source).toLowerCase().includes(q)) : allDocs;
+    $vcount.textContent = list.length + (list.length === 1 ? " documento" : " documentos");
+    if (!list.length) { $docList.innerHTML = '<div class="empty">Sin documentos.</div>'; return; }
+    $docList.innerHTML = "";
+    list.forEach(d => {
+      const card = document.createElement("div");
+      card.className = "doc-card";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const id = document.createElement("span"); id.className = "id"; id.textContent = "#" + String(d.id).slice(0, 10);
+      const src = document.createElement("span"); src.className = "src"; src.textContent = d.source + (d.created ? " · " + d.created : "");
+      meta.append(id, src);
+      const txt = document.createElement("div");
+      txt.className = "txt";
+      txt.textContent = d.content;
+      card.append(meta, txt);
+      $docList.appendChild(card);
+    });
+  }
+
+  $vsearch.addEventListener("input", renderDocs);
+  document.getElementById("vrefresh").addEventListener("click", loadDocs);
+
+  // ── Agregar documento ──
+  const $addFeedback = document.getElementById("add-feedback");
+  function setAddFeedback(msg, kind) {
+    $addFeedback.textContent = msg;
+    $addFeedback.className = "feedback" + (kind ? " " + kind : "");
+  }
+  document.getElementById("doc-add").addEventListener("click", async () => {
+    const title   = document.getElementById("doc-title").value.trim();
+    const content = document.getElementById("doc-content").value.trim();
+    if (!content) { setAddFeedback("Escribí el contenido del documento.", "err"); return; }
+    setAddFeedback("Agregando…", "");
+    try {
+      if (ADMIN.ingestUrl) {
+        const res = await fetch(ADMIN.ingestUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "ingest", title: title, content: content, userId: AGENT_CONFIG.sessionId })
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+      } else {
+        demoDocs.unshift({ id: "nuevo-" + (demoDocs.length + 1), source: title || "Sin título", created: "ahora", content: content });
+      }
+      setAddFeedback("✓ Documento agregado.", "ok");
+      document.getElementById("doc-title").value = "";
+      document.getElementById("doc-content").value = "";
+      loadDocs();
+    } catch (err) {
+      setAddFeedback("Error: " + err.message, "err");
+    }
+  });
 
   // Init
   greet();
