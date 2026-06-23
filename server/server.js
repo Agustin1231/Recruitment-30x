@@ -12,6 +12,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { Pool } = require("pg");
+const { Readable } = require("stream");
 
 // Raiz del sitio estatico (el repo): server.js vive en server/, los estaticos un nivel arriba.
 const STATIC_ROOT = path.resolve(__dirname, "..");
@@ -54,6 +55,19 @@ const DB = {
 };
 const PORT = parseInt(process.env.PORT || "8787", 10);
 
+// ── Proxy del webhook de mensajes de n8n ──────────────────────────
+//  La credencial del Basic Auth vive SOLO acá, en variables de entorno
+//  (server/.env, ignorado por git). El frontend ya NO la lleva: llama a
+//  /api/chat y este backend le agrega el Authorization y reenvía a n8n.
+//  Cloudflare está delante de n8n y bloquea User-Agents no-navegador
+//  (responde "error 1010"), por eso mandamos un UA de navegador.
+const N8N = {
+  url:  process.env.N8N_WEBHOOK_URL  || "https://n8n.agustinynatalia.site/webhook/d7ed99fa-1b54-4d0e-abfe-7c69b9960b7e",
+  user: process.env.N8N_WEBHOOK_USER || "",
+  pass: process.env.N8N_WEBHOOK_PASS || ""
+};
+const BROWSER_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
 if (!DB.host || !DB.user || !DB.password || !DB.database) {
   console.error("Faltan credenciales. Copiá server/.env.example a server/.env y completalo.");
   process.exit(1);
@@ -69,6 +83,15 @@ const ID_PREF      = ["id", "uuid", "pk"];
 let schema = null; // { table, idCol, contentCol, metaCol }
 
 function quote(name) { return '"' + String(name).replace(/"/g, '""') + '"'; }
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", c => chunks.push(c));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
 
 async function introspect() {
   const { rows } = await pool.query(`
@@ -156,6 +179,37 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       console.error("Error en /api/docs:", e.message);
       res.writeHead(500, { ...CORS, "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: String(e.message || e) }));
+    }
+  }
+
+  // Proxy del chat: agrega el Basic Auth (env vars) y reenvía a n8n, con streaming.
+  if (url.pathname === "/api/chat" && req.method === "POST") {
+    if (!N8N.user || !N8N.pass) {
+      res.writeHead(500, { ...CORS, "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Faltan N8N_WEBHOOK_USER / N8N_WEBHOOK_PASS en el entorno del backend." }));
+    }
+    try {
+      const body = await readBody(req);
+      const auth = Buffer.from(N8N.user + ":" + N8N.pass, "utf8").toString("base64"); // UTF-8 (la pass tiene "£")
+      const upstream = await fetch(N8N.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": req.headers["content-type"] || "application/json",
+          "Authorization": "Basic " + auth,
+          "User-Agent": BROWSER_UA
+        },
+        body
+      });
+      res.writeHead(upstream.status, {
+        ...CORS,
+        "Content-Type": upstream.headers.get("content-type") || "application/json; charset=utf-8"
+      });
+      if (upstream.body) return Readable.fromWeb(upstream.body).pipe(res);
+      return res.end(await upstream.text());
+    } catch (e) {
+      console.error("Error en /api/chat:", e.message);
+      res.writeHead(502, { ...CORS, "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: String(e.message || e) }));
     }
   }
