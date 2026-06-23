@@ -1048,7 +1048,7 @@
       return "Operamos 13 programas en 4 categorías: Ventas, IA, Growth y Startups, más la Inmersión Ejecutiva presencial de 3 días. ¿Sobre cuál querés saber?";
     if (/hola|buenas|hey/.test(t))
       return "¡Hola! Soy el agente de 30X. Puedo ayudarte con programas, cohortes, el equipo y los procesos internos. ¿Por dónde arrancamos?";
-    return "Estoy en modo demo todavía (sin endpoint de n8n conectado), así que respondo con info general de 30X y el streaming está simulado. En cuanto conectes el webhook, esto va a llegar token por token desde el agente. ¿Querés ver los programas o cómo funciona una cohorte?";
+    return "Estoy en modo demo todavía (sin webhook de n8n conectado), así que respondo con info general de 30X y el streaming está simulado. En cuanto conectes el webhook, esto va a llegar token por token desde el agente. ¿Querés ver los programas o cómo funciona una cohorte?";
   }
 
   // ── Demo: streaming simulado palabra por palabra ────────
@@ -1278,7 +1278,7 @@
     user: "admin@gmail.com",
     pass: "admin123",
     ingestUrl: "https://n8n.agustinynatalia.site/webhook/subir-pdf-30x", // POST multipart, campo "data" = PDF → n8n parsea + embeddings + INSERT en vectordb
-    listUrl:   null   // POST {action:"list", userId} → n8n: SELECT de vectordb → [{id, content, source, created}]  (pendiente de crear)
+    listUrl:   "http://localhost:8787/api/docs"   // backend local (server/server.js) → SELECT directo de vectordb (tabla n8n_vectors)
   };
 
   // Datos demo (estructura realista de la tabla vectorial de n8n).
@@ -1350,7 +1350,7 @@
 
   async function loadDocs() {
     $docsNote.innerHTML = ADMIN.listUrl
-      ? "Conectado a n8n → <b>vectordb</b>."
+      ? "Conectado a <b>vectordb</b> (tabla n8n_vectors) vía backend local. Requiere <b>server/</b> corriendo."
       : "El listado todavía es demo (falta el webhook de lectura). Los PDF que subís <b>sí</b> se insertan en vectordb; acá se muestran los de esta sesión + ejemplos.";
     $docList.innerHTML = '<div class="empty">Cargando…</div>';
     $vcount.textContent = "—";

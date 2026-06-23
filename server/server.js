@@ -1,0 +1,139 @@
+// ════════════════════════════════════════════════════════════════
+//  Backend mínimo: lee la base vectorial de 30X (Postgres + pgvector)
+//  y la sirve al panel de administración de index.html.
+//
+//  Las credenciales se leen de variables de entorno (server/.env),
+//  NUNCA del HTML ni hardcodeadas en el repo.
+//  Uso:  cp .env.example .env  →  npm start
+//        (npm start corre: node --env-file=.env server.js)
+//        http://localhost:8787/api/docs
+// ════════════════════════════════════════════════════════════════
+const http = require("http");
+const { Pool } = require("pg");
+
+const DB = {
+  host: process.env.PGHOST,
+  port: parseInt(process.env.PGPORT || "5432", 10),
+  database: process.env.PGDATABASE,
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  ssl: process.env.PGSSL === "true"
+};
+const PORT = parseInt(process.env.PORT || "8787", 10);
+
+if (!DB.host || !DB.user || !DB.password || !DB.database) {
+  console.error("Faltan credenciales. Copiá server/.env.example a server/.env y completalo.");
+  process.exit(1);
+}
+
+const pool = new Pool({ ...DB, max: 4, idleTimeoutMillis: 30000, connectionTimeoutMillis: 8000 });
+
+// Preferencias para detectar columnas (pgvector / LangChain / n8n).
+const CONTENT_PREF = ["text", "content", "document", "page_content", "pagecontent", "chunk", "body"];
+const META_PREF    = ["metadata", "cmetadata", "meta"];
+const ID_PREF      = ["id", "uuid", "pk"];
+
+let schema = null; // { table, idCol, contentCol, metaCol }
+
+function quote(name) { return '"' + String(name).replace(/"/g, '""') + '"'; }
+
+async function introspect() {
+  const { rows } = await pool.query(`
+    SELECT table_name, column_name, udt_name, data_type, ordinal_position
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+    ORDER BY table_name, ordinal_position
+  `);
+  const tables = {};
+  for (const r of rows) (tables[r.table_name] = tables[r.table_name] || []).push(r);
+
+  // 1) tabla con una columna de tipo vector (pgvector)
+  let chosen = null;
+  for (const [t, cols] of Object.entries(tables)) {
+    if (cols.some(c => c.udt_name === "vector")) { chosen = { t, cols }; break; }
+  }
+  // 2) fallback: tabla con jsonb + columna de texto
+  if (!chosen) {
+    for (const [t, cols] of Object.entries(tables)) {
+      const hasJson = cols.some(c => c.udt_name === "jsonb" || c.udt_name === "json");
+      const hasText = cols.some(c => c.data_type === "text" || c.data_type.includes("character"));
+      if (hasJson && hasText) { chosen = { t, cols }; break; }
+    }
+  }
+  if (!chosen) throw new Error("No encontré una tabla vectorial en el esquema 'public'.");
+
+  const names = chosen.cols.map(c => c.column_name);
+  const lower = names.map(n => n.toLowerCase());
+  const pick = (prefs) => {
+    for (const p of prefs) { const i = lower.indexOf(p); if (i >= 0) return names[i]; }
+    return null;
+  };
+  const idCol = pick(ID_PREF) || names[0];
+  const metaCol = pick(META_PREF);
+  let contentCol = pick(CONTENT_PREF);
+  if (!contentCol) {
+    const textCol = chosen.cols.find(c =>
+      (c.data_type === "text" || c.data_type.includes("character")) &&
+      c.column_name !== idCol && c.column_name !== metaCol);
+    contentCol = textCol ? textCol.column_name : null;
+  }
+  schema = { table: chosen.t, idCol, contentCol, metaCol };
+  console.log("→ tabla vectorial:", schema.table,
+    "| id:", schema.idCol, "| contenido:", schema.contentCol, "| metadata:", schema.metaCol);
+  return schema;
+}
+
+async function fetchDocs(limit) {
+  if (!schema) await introspect();
+  const cols = [quote(schema.idCol) + " AS id"];
+  cols.push((schema.contentCol ? quote(schema.contentCol) : "''") + " AS content");
+  cols.push((schema.metaCol ? quote(schema.metaCol) + "::text" : "NULL") + " AS metadata");
+  const sql = `SELECT ${cols.join(", ")} FROM ${quote(schema.table)} LIMIT $1`;
+  const { rows } = await pool.query(sql, [limit]);
+  return rows.map(r => {
+    let source = "—";
+    if (r.metadata) {
+      try {
+        const m = JSON.parse(r.metadata);
+        source = m.source || m.title || m.file || m.filename || m.blobType || "—";
+      } catch (e) { /* metadata no-JSON */ }
+    }
+    return { id: r.id, content: r.content || "", source, created: "" };
+  });
+}
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Private-Network": "true"
+};
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, "http://localhost");
+
+  if (req.method === "OPTIONS") { res.writeHead(204, CORS); return res.end(); }
+
+  if (url.pathname === "/api/docs") {
+    try {
+      const limit = Math.min(parseInt(url.searchParams.get("limit") || "500", 10) || 500, 2000);
+      const documents = await fetchDocs(limit);
+      res.writeHead(200, { ...CORS, "Content-Type": "application/json; charset=utf-8" });
+      return res.end(JSON.stringify({ table: schema.table, count: documents.length, documents }));
+    } catch (e) {
+      console.error("Error en /api/docs:", e.message);
+      res.writeHead(500, { ...CORS, "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: String(e.message || e) }));
+    }
+  }
+
+  if (url.pathname === "/" || url.pathname === "/health") {
+    res.writeHead(200, { ...CORS, "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ ok: true, service: "30x vectordb viewer" }));
+  }
+
+  res.writeHead(404, CORS);
+  res.end();
+});
+
+server.listen(PORT, () => console.log("Backend vectordb en http://localhost:" + PORT + "/api/docs"));
